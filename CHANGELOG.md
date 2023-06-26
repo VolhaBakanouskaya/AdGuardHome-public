@@ -90,6 +90,8 @@ In this release, the schema version has changed from 20 to 21.
 
 ### Fixed
 
+- Using of `/etc/hosts` file to resolve the hostnames of plain upstream servers
+  ([#5902]).
 - Cannot set `bind_host` in AdGuardHome.yaml (docker version)([#4231], [#4235]).
 - The blocklists can now be deleted properly ([#5700]).
 - Queries with the question-section target `.`, for example `NS .`, are now
@@ -102,6 +104,7 @@ In this release, the schema version has changed from 20 to 21.
 [#4231]: https://github.com/AdguardTeam/AdGuardHome/issues/4231
 [#4235]: https://github.com/AdguardTeam/AdGuardHome/pull/4235
 [#5700]: https://github.com/AdguardTeam/AdGuardHome/issues/5700
+[#5902]: https://github.com/AdguardTeam/AdGuardHome/issues/5902
 [#5910]: https://github.com/AdguardTeam/AdGuardHome/issues/5910
 [#5913]: https://github.com/AdguardTeam/AdGuardHome/issues/5913
 
