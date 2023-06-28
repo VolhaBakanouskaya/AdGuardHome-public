@@ -33,27 +33,27 @@ const dataDir = "data"
 type logSettings struct {
 	// File is the path to the log file.  If empty, logs are written to stdout.
 	// If "syslog", logs are written to syslog.
-	File string `yaml:"log_file"`
+	File string `yaml:"file"`
 
 	// MaxBackups is the maximum number of old log files to retain.
 	//
 	// NOTE: MaxAge may still cause them to get deleted.
-	MaxBackups int `yaml:"log_max_backups"`
+	MaxBackups int `yaml:"max_backups"`
 
 	// MaxSize is the maximum size of the log file before it gets rotated, in
 	// megabytes.  The default value is 100 MB.
-	MaxSize int `yaml:"log_max_size"`
+	MaxSize int `yaml:"max_size"`
 
 	// MaxAge is the maximum duration for retaining old log files, in days.
-	MaxAge int `yaml:"log_max_age"`
+	MaxAge int `yaml:"max_age"`
 
 	// Compress determines, if the rotated log files should be compressed using
 	// gzip.
-	Compress bool `yaml:"log_compress"`
+	Compress bool `yaml:"compress"`
 
 	// LocalTime determines, if the time used for formatting the timestamps in
 	// is the computer's local time.
-	LocalTime bool `yaml:"log_localtime"`
+	LocalTime bool `yaml:"localtime"`
 
 	// Verbose determines, if verbose (aka debug) logging is enabled.
 	Verbose bool `yaml:"verbose"`

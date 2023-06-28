@@ -22,7 +22,7 @@ import (
 )
 
 // currentSchemaVersion is the current schema version.
-const currentSchemaVersion = 22
+const currentSchemaVersion = 24
 
 // These aliases are provided for convenience.
 type (
@@ -1254,6 +1254,86 @@ func upgradeSchema21to22(diskConf yobj) (err error) {
 	}
 
 	return nil
+}
+
+// upgradeSchema22to23 performs the following changes:
+//
+//	# BEFORE:
+//	  'log_file': ""
+//	  'log_max_backups': 0
+//	  'log_max_size': 100
+//	  'log_max_age': 3
+//	  'log_compress': false
+//	  'log_localtime': false
+//	  'verbose': false
+//
+//	# AFTER:
+//	  'log':
+//	  'file': ""
+//	  'max_backups': 0
+//	  'max_size': 100
+//	  'max_age': 3
+//	  'compress': false
+//	  'localtime': false
+//	  'verbose': false
+func upgradeSchema23to24(diskConf yobj) (err error) {
+	log.Printf("Upgrade yaml: 23 to 24")
+	diskConf["schema_version"] = 24
+
+	m := map[string]struct {
+		newKey  string
+		handler func(o yobj, k string) (ok bool, v interface{}, hErr error)
+	}{
+		"log_file":        {newKey: "file", handler: fieldValue[string]},
+		"log_max_backups": {newKey: "max_backups", handler: fieldValue[int]},
+		"log_max_size":    {newKey: "max_size", handler: fieldValue[int]},
+		"log_max_age":     {newKey: "max_age", handler: fieldValue[int]},
+		"log_compress":    {newKey: "compress", handler: fieldValue[bool]},
+		"log_localtime":   {newKey: "localtime", handler: fieldValue[bool]},
+		"verbose":         {newKey: "verbose", handler: fieldValue[bool]},
+	}
+
+	logObj := yobj{}
+	for key, handler := range m {
+		ok, newVal, hErr := handler.handler(diskConf, key)
+		if !ok {
+			return hErr
+		}
+
+		switch v := newVal.(type) {
+		case int, bool, string:
+			logObj[handler.newKey] = v
+		default:
+			return fmt.Errorf("invalid type of %s: %T", key, newVal)
+		}
+	}
+
+	diskConf["log"] = logObj
+
+	delete(diskConf, "log_file")
+	delete(diskConf, "log_max_backups")
+	delete(diskConf, "log_max_size")
+	delete(diskConf, "log_max_age")
+	delete(diskConf, "log_compress")
+	delete(diskConf, "log_localtime")
+	delete(diskConf, "verbose")
+
+	return nil
+}
+
+// fieldValue returns the value of type T for key in diskConf object.
+func fieldValue[T any](diskConf yobj, key string) (ok bool, field interface{}, err error) {
+	fieldVal, ok := diskConf[key]
+	if !ok {
+		return false, new(T), nil
+	}
+
+	f, ok := fieldVal.(T)
+	if !ok {
+		return false, nil, fmt.Errorf("unexpected type of %s: %T", key, fieldVal)
+	}
+
+	return true, f, nil
 }
 
 // TODO(a.garipov): Replace with log.Output when we port it to our logging

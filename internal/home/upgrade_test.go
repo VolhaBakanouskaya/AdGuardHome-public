@@ -1253,3 +1253,51 @@ func TestUpgradeSchema21to22(t *testing.T) {
 		})
 	}
 }
+
+func TestUpgradeSchema23to24(t *testing.T) {
+	const newSchemaVer = 24
+
+	testCases := []struct {
+		in   yobj
+		want yobj
+		name string
+	}{{
+		name: "empty",
+		in:   yobj{},
+		want: yobj{
+			"schema_version": newSchemaVer,
+		},
+	}, {
+		name: "ok",
+		in: yobj{
+			"log_file":        "/test/path.log",
+			"log_max_backups": 1,
+			"log_max_size":    2,
+			"log_max_age":     3,
+			"log_compress":    true,
+			"log_localtime":   true,
+			"verbose":         true,
+		},
+		want: yobj{
+			"log": yobj{
+				"file":        "/test/path.log",
+				"max_backups": 1,
+				"max_size":    2,
+				"max_age":     3,
+				"compress":    true,
+				"localtime":   true,
+				"verbose":     true,
+			},
+			"schema_version": newSchemaVer,
+		},
+	}}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := upgradeSchema23to24(tc.in)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.want, tc.in)
+		})
+	}
+}
