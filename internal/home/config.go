@@ -30,8 +30,6 @@ import (
 const dataDir = "data"
 
 // logSettings are the logging settings part of the configuration file.
-//
-// TODO(a.garipov): Put them into a separate object.
 type logSettings struct {
 	// File is the path to the log file.  If empty, logs are written to stdout.
 	// If "syslog", logs are written to syslog.
@@ -147,7 +145,8 @@ type configuration struct {
 	// Keep this field sorted to ensure consistent ordering.
 	Clients *clientsConfig `yaml:"clients"`
 
-	logSettings `yaml:",inline"`
+	// LogConfig is a block with log configuration params.
+	LogConfig logSettings `yaml:"log"`
 
 	OSConfig *osConfig `yaml:"os"`
 
@@ -378,7 +377,7 @@ var config = &configuration{
 			HostsFile: true,
 		},
 	},
-	logSettings: logSettings{
+	LogConfig: logSettings{
 		Compress:   false,
 		LocalTime:  false,
 		MaxBackups: 0,
@@ -409,19 +408,19 @@ func (c *configuration) getConfigFilename() string {
 // separate method in order to configure logger before the actual configuration
 // is parsed and applied.
 func readLogSettings() (ls *logSettings) {
-	ls = &logSettings{}
+	conf := &configuration{}
 
 	yamlFile, err := readConfigFile()
 	if err != nil {
 		return ls
 	}
 
-	err = yaml.Unmarshal(yamlFile, ls)
+	err = yaml.Unmarshal(yamlFile, conf)
 	if err != nil {
 		log.Error("Couldn't get logging settings from the configuration: %s", err)
 	}
 
-	return ls
+	return &conf.LogConfig
 }
 
 // validateBindHosts returns error if any of binding hosts from configuration is
