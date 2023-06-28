@@ -466,19 +466,15 @@ func (s *Server) setupResolvers(localAddrs []string) (err error) {
 
 	log.Debug("upstreams to resolve PTR for local addresses: %v", localAddrs)
 
-	var upsConfig *proxy.UpstreamConfig
-	upsConfig, err = proxy.ParseUpstreamsConfig(
-		localAddrs,
-		&upstream.Options{
-			Bootstrap: bootstraps,
-			Timeout:   defaultLocalTimeout,
-			// TODO(e.burkov): Should we verify server's certificates?
+	upsConfig, err := s.prepareUpstreamConfig(localAddrs, nil, &upstream.Options{
+		Bootstrap: bootstraps,
+		Timeout:   defaultLocalTimeout,
+		// TODO(e.burkov): Should we verify server's certificates?
 
-			PreferIPv6: s.conf.BootstrapPreferIPv6,
-		},
-	)
+		PreferIPv6: s.conf.BootstrapPreferIPv6,
+	})
 	if err != nil {
-		return fmt.Errorf("parsing upstreams: %w", err)
+		return fmt.Errorf("parsing private upstreams: %w", err)
 	}
 
 	s.localResolvers = &proxy.Proxy{

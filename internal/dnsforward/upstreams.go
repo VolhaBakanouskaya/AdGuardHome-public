@@ -1,6 +1,7 @@
 package dnsforward
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"net/url"
@@ -19,7 +20,7 @@ import (
 )
 
 // prepareUpstreamSettings sets upstream DNS server settings.
-func (s *Server) prepareUpstreamSettings() error {
+func (s *Server) prepareUpstreamSettings() (err error) {
 	// We're setting a customized set of RootCAs.  The reason is that Go default
 	// mechanism of loading TLS roots does not always work properly on some
 	// routers so we're loading roots manually and pass it here.
@@ -31,7 +32,8 @@ func (s *Server) prepareUpstreamSettings() error {
 	// Load upstreams either from the file, or from the settings
 	var upstreams []string
 	if s.conf.UpstreamDNSFileName != "" {
-		data, err := os.ReadFile(s.conf.UpstreamDNSFileName)
+		var data []byte
+		data, err = os.ReadFile(s.conf.UpstreamDNSFileName)
 		if err != nil {
 			return fmt.Errorf("reading upstream from file: %w", err)
 		}
@@ -42,45 +44,52 @@ func (s *Server) prepareUpstreamSettings() error {
 	} else {
 		upstreams = s.conf.UpstreamDNS
 	}
+	upstreams = stringutil.FilterOut(upstreams, IsCommentOrEmpty)
 
-	return s.prepareUpstreamConfig(stringutil.FilterOut(upstreams, IsCommentOrEmpty))
-}
-
-// prepareUpstreamConfig sets upstream configuration based on upstreams and
-// configuration of s.
-func (s *Server) prepareUpstreamConfig(upstreams []string) (err error) {
-	opts := &upstream.Options{
+	s.conf.UpstreamConfig, err = s.prepareUpstreamConfig(upstreams, defaultDNS, &upstream.Options{
 		Bootstrap:    s.conf.BootstrapDNS,
 		Timeout:      s.conf.UpstreamTimeout,
 		HTTPVersions: UpstreamHTTPVersions(s.conf.UseHTTP3Upstreams),
 		PreferIPv6:   s.conf.BootstrapPreferIPv6,
-	}
-	upstreamConfig, err := proxy.ParseUpstreamsConfig(upstreams, opts)
+	})
 	if err != nil {
-		return fmt.Errorf("parsing upstream config: %w", err)
+		return fmt.Errorf("preparing upstream config: %w", err)
 	}
 
-	if len(upstreamConfig.Upstreams) == 0 {
-		log.Info("warning: no default upstream servers specified, using %v", defaultDNS)
-		var uc *proxy.UpstreamConfig
-		uc, err = proxy.ParseUpstreamsConfig(defaultDNS, opts)
+	return nil
+}
+
+// prepareUpstreamConfig sets upstream configuration based on upstreams and
+// configuration of s.
+func (s *Server) prepareUpstreamConfig(
+	upstreams []string,
+	defaultUpstreams []string,
+	opts *upstream.Options,
+) (uc *proxy.UpstreamConfig, err error) {
+	uc, err = proxy.ParseUpstreamsConfig(upstreams, opts)
+	if err != nil {
+		return nil, fmt.Errorf("parsing upstream config: %w", err)
+	}
+
+	if len(uc.Upstreams) == 0 && defaultUpstreams != nil {
+		log.Info("warning: no default upstream servers specified, using %v", defaultUpstreams)
+		var defaultUpstreamConfig *proxy.UpstreamConfig
+		defaultUpstreamConfig, err = proxy.ParseUpstreamsConfig(defaultUpstreams, opts)
 		if err != nil {
-			return fmt.Errorf("parsing default upstreams: %w", err)
+			return nil, fmt.Errorf("parsing default upstreams: %w", err)
 		}
 
-		upstreamConfig.Upstreams = uc.Upstreams
+		uc.Upstreams = defaultUpstreamConfig.Upstreams
 	}
 
 	if s.dnsFilter != nil && s.dnsFilter.EtcHosts != nil {
-		err = s.replaceUpstreamsWithHosts(upstreamConfig, opts)
+		err = s.replaceUpstreamsWithHosts(uc, opts)
 		if err != nil {
-			return fmt.Errorf("resolving upstreams with hosts: %w", err)
+			return nil, fmt.Errorf("resolving upstreams with hosts: %w", err)
 		}
 	}
 
-	s.conf.UpstreamConfig = upstreamConfig
-
-	return nil
+	return uc, nil
 }
 
 // replaceUpstreamsWithHosts replaces unique upstreams with their resolved
@@ -211,6 +220,8 @@ func (s *Server) resolveUpstreamHost(
 		return nil
 	}
 
+	sortNetIPAddrs(ips, opts.PreferIPv6)
+
 	opts = opts.Clone()
 	opts.ServerIPAddrs = ips
 
@@ -221,6 +232,39 @@ func (s *Server) resolveUpstreamHost(
 	}
 
 	return resolved
+}
+
+// sortNetIPAddrs sorts addrs in accordance with the protocol preferences.
+// Invalid addresses are sorted near the end.
+func sortNetIPAddrs(addrs []net.IP, preferIPv6 bool) {
+	l := len(addrs)
+	if l <= 1 {
+		return
+	}
+
+	slices.SortStableFunc(addrs, func(addrA, addrB net.IP) (sortsBefore bool) {
+		switch len(addrA) {
+		case net.IPv4len, net.IPv6len:
+			switch len(addrB) {
+			case net.IPv4len, net.IPv6len:
+				// Go on.
+			default:
+				return true
+			}
+		default:
+			return false
+		}
+
+		if aIs4, bIs4 := addrA.To4() != nil, addrB.To4() != nil; aIs4 != bIs4 {
+			if aIs4 {
+				return !preferIPv6
+			}
+
+			return preferIPv6
+		}
+
+		return bytes.Compare(addrA, addrB) < 0
+	})
 }
 
 // UpstreamHTTPVersions returns the HTTP versions for upstream configuration
