@@ -124,7 +124,7 @@ In this release, the schema version has changed from 20 to 22.
 
 ### Fixed
 
-- Using of `/etc/hosts` file to resolve the hostnames of plain upstream servers
+- Using of `/etc/hosts` file to resolve the hostnames of upstream DNS servers
   ([#5902]).
 - Cannot set `bind_host` in AdGuardHome.yaml (docker version)([#4231], [#4235]).
 - The blocklists can now be deleted properly ([#5700]).
