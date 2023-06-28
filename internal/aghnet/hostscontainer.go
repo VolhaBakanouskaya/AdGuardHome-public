@@ -59,7 +59,7 @@ func (rm *requestMatcher) MatchRequest(
 		log.Debug(
 			"%s: handling %s request for %s",
 			hostsContainerPrefix,
-			dns.TypeToString[req.DNSType],
+			dns.Type(req.DNSType),
 			req.Hostname,
 		)
 

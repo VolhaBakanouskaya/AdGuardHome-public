@@ -506,7 +506,8 @@ func (s *Server) Prepare(conf *ServerConfig) (err error) {
 
 	err = s.prepareUpstreamSettings()
 	if err != nil {
-		return fmt.Errorf("preparing upstream settings: %w", err)
+		// Don't wrap the error, because it's informative enough as is.
+		return err
 	}
 
 	var proxyConfig proxy.Config
