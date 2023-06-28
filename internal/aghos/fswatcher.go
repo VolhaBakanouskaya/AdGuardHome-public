@@ -33,6 +33,9 @@ type FSWatcher interface {
 // nothing.
 type EmptyWatcher struct{}
 
+// type check
+var _ FSWatcher = EmptyWatcher{}
+
 // Close implements the [io.Closer] interface for EmptyWatcher.
 func (EmptyWatcher) Close() (err error) { return nil }
 
