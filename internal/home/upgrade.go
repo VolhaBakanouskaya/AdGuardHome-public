@@ -1259,16 +1259,16 @@ func upgradeSchema21to22(diskConf yobj) (err error) {
 // upgradeSchema22to23 performs the following changes:
 //
 //	# BEFORE:
-//	  'log_file': ""
-//	  'log_max_backups': 0
-//	  'log_max_size': 100
-//	  'log_max_age': 3
-//	  'log_compress': false
-//	  'log_localtime': false
-//	  'verbose': false
+//	'log_file': ""
+//	'log_max_backups': 0
+//	'log_max_size': 100
+//	'log_max_age': 3
+//	'log_compress': false
+//	'log_localtime': false
+//	'verbose': false
 //
 //	# AFTER:
-//	  'log':
+//	'log':
 //	  'file': ""
 //	  'max_backups': 0
 //	  'max_size': 100
