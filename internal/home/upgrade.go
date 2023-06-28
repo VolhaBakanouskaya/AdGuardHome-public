@@ -1256,7 +1256,7 @@ func upgradeSchema21to22(diskConf yobj) (err error) {
 	return nil
 }
 
-// upgradeSchema22to23 performs the following changes:
+// upgradeSchema23to24 performs the following changes:
 //
 //	# BEFORE:
 //	'log_file': ""
