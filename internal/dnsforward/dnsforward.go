@@ -17,6 +17,7 @@ import (
 	"github.com/AdguardTeam/AdGuardHome/internal/dhcpd"
 	"github.com/AdguardTeam/AdGuardHome/internal/filtering"
 	"github.com/AdguardTeam/AdGuardHome/internal/querylog"
+	"github.com/AdguardTeam/AdGuardHome/internal/rdns"
 	"github.com/AdguardTeam/AdGuardHome/internal/stats"
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/AdguardTeam/dnsproxy/upstream"
@@ -277,17 +278,6 @@ func (s *Server) Resolve(host string) ([]net.IPAddr, error) {
 	return s.internalProxy.LookupIPAddr(host)
 }
 
-// RDNSExchanger is a resolver for clients' addresses.
-type RDNSExchanger interface {
-	// Exchange tries to resolve the ip in a suitable way, i.e. either as local
-	// or as external.
-	Exchange(ip net.IP) (host string, err error)
-
-	// ResolvesPrivatePTR returns true if the RDNSExchanger is able to
-	// resolve PTR requests for locally-served addresses.
-	ResolvesPrivatePTR() (ok bool)
-}
-
 const (
 	// ErrRDNSNoData is returned by [RDNSExchanger.Exchange] when the answer
 	// section of response is either NODATA or has no PTR records.
@@ -299,10 +289,10 @@ const (
 )
 
 // type check
-var _ RDNSExchanger = (*Server)(nil)
+var _ rdns.Exchanger = (*Server)(nil)
 
-// Exchange implements the RDNSExchanger interface for *Server.
-func (s *Server) Exchange(ip net.IP) (host string, err error) {
+// Exchange implements the [rdns.Exchanger] interface for *Server.
+func (s *Server) Exchange(ip netip.Addr) (host string, err error) {
 	s.serverLock.RLock()
 	defer s.serverLock.RUnlock()
 
@@ -310,7 +300,7 @@ func (s *Server) Exchange(ip net.IP) (host string, err error) {
 		return "", nil
 	}
 
-	arpa, err := netutil.IPToReversedAddr(ip)
+	arpa, err := netutil.IPToReversedAddr(ip.AsSlice())
 	if err != nil {
 		return "", fmt.Errorf("reversing ip: %w", err)
 	}
@@ -335,7 +325,7 @@ func (s *Server) Exchange(ip net.IP) (host string, err error) {
 	}
 
 	var resolver *proxy.Proxy
-	if s.privateNets.Contains(ip) {
+	if s.IsPrivateIP(ip) {
 		if !s.conf.UsePrivateRDNS {
 			return "", nil
 		}
@@ -370,12 +360,9 @@ func (s *Server) Exchange(ip net.IP) (host string, err error) {
 	return "", ErrRDNSNoData
 }
 
-// ResolvesPrivatePTR implements the RDNSExchanger interface for *Server.
-func (s *Server) ResolvesPrivatePTR() (ok bool) {
-	s.serverLock.RLock()
-	defer s.serverLock.RUnlock()
-
-	return s.conf.UsePrivateRDNS
+// IsPrivateIP implements the [rdns.Exchanger] interface for *Server.
+func (s *Server) IsPrivateIP(ip netip.Addr) (ok bool) {
+	return s.privateNets.Contains(ip.AsSlice())
 }
 
 // Start starts the DNS server.
