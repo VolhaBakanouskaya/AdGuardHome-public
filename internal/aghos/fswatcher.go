@@ -29,22 +29,6 @@ type FSWatcher interface {
 	Add(name string) (err error)
 }
 
-// EmptyWatcher is an empty [FSWatcher] interface implementation that does
-// nothing.
-type EmptyWatcher struct{}
-
-// type check
-var _ FSWatcher = EmptyWatcher{}
-
-// Close implements the [io.Closer] interface for EmptyWatcher.
-func (EmptyWatcher) Close() (err error) { return nil }
-
-// Events implements the [FSWatcher] interface for EmptyWatcher.
-func (EmptyWatcher) Events() (e <-chan event) { return nil }
-
-// Add implements the [FSWatcher] interface for EmptyWatcher.
-func (EmptyWatcher) Add(_ string) (err error) { return nil }
-
 // osWatcher tracks the file system provided by the OS.
 type osWatcher struct {
 	// w is the actual notifier that is handled by osWatcher.

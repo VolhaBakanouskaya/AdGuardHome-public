@@ -23,19 +23,19 @@ import (
 // loadUpstreams parses upstream DNS servers from the configured file or from
 // the configuration itself.
 func (s *Server) loadUpstreams() (upstreams []string, err error) {
-	if s.conf.UpstreamDNSFileName != "" {
-		var data []byte
-		data, err = os.ReadFile(s.conf.UpstreamDNSFileName)
-		if err != nil {
-			return nil, fmt.Errorf("reading upstream from file: %w", err)
-		}
-
-		upstreams = stringutil.SplitTrimmed(string(data), "\n")
-
-		log.Debug("dnsforward: got %d upstreams in %q", len(upstreams), s.conf.UpstreamDNSFileName)
-	} else {
-		upstreams = s.conf.UpstreamDNS
+	if s.conf.UpstreamDNSFileName == "" {
+		return stringutil.FilterOut(s.conf.UpstreamDNS, IsCommentOrEmpty), nil
 	}
+
+	var data []byte
+	data, err = os.ReadFile(s.conf.UpstreamDNSFileName)
+	if err != nil {
+		return nil, fmt.Errorf("reading upstream from file: %w", err)
+	}
+
+	upstreams = stringutil.SplitTrimmed(string(data), "\n")
+
+	log.Debug("dnsforward: got %d upstreams in %q", len(upstreams), s.conf.UpstreamDNSFileName)
 
 	return stringutil.FilterOut(upstreams, IsCommentOrEmpty), nil
 }
@@ -112,7 +112,7 @@ func (s *Server) replaceUpstreamsWithHosts(
 	upsConf *proxy.UpstreamConfig,
 	opts *upstream.Options,
 ) (err error) {
-	resolved := map[upstream.Upstream]upstream.Upstream{}
+	resolved := map[string]*upstream.Options{}
 
 	err = s.resolveUpstreamsWithHosts(resolved, upsConf.Upstreams, opts)
 	if err != nil {
@@ -146,32 +146,43 @@ func (s *Server) replaceUpstreamsWithHosts(
 // resolve are placed to resolved as-is.  This function only returns error of
 // upstreams closing.
 func (s *Server) resolveUpstreamsWithHosts(
-	resolved map[upstream.Upstream]upstream.Upstream,
+	resolved map[string]*upstream.Options,
 	upstreams []upstream.Upstream,
 	opts *upstream.Options,
 ) (err error) {
-	for i, u := range upstreams {
-		if resolvedUps, ok := resolved[u]; ok {
-			upstreams[i] = resolvedUps
+	for i := range upstreams {
+		u := upstreams[i]
+		addr := u.Address()
+		host := extractUpstreamHost(addr)
 
+		withIPs, ok := resolved[host]
+		if !ok {
+			ips := s.resolveUpstreamHost(host)
+			if len(ips) == 0 {
+				resolved[host] = nil
+
+				return nil
+			}
+
+			sortNetIPAddrs(ips, opts.PreferIPv6)
+
+			withIPs = opts.Clone()
+			withIPs.ServerIPAddrs = ips
+			resolved[host] = withIPs
+		} else if withIPs == nil {
 			continue
 		}
 
-		resolvedUps := s.resolveUpstreamHost(u, opts)
-		if resolvedUps == nil {
-			resolved[u] = u
-
-			continue
+		if err = u.Close(); err != nil {
+			return fmt.Errorf("closing upstream %s: %w", addr, err)
 		}
 
-		err = u.Close()
+		upstreams[i], err = upstream.AddressToUpstream(addr, withIPs)
 		if err != nil {
-			return fmt.Errorf("closing upstream %s: %w", u.Address(), err)
+			return fmt.Errorf("replacing upstream %s with resolved %s: %w", addr, host, err)
 		}
 
-		// Replace with the resolved upstream.
-		resolved[u] = resolvedUps
-		upstreams[i] = resolvedUps
+		log.Debug("dnsforward: using %s for %s", withIPs.ServerIPAddrs, upstreams[i].Address())
 	}
 
 	return nil
@@ -206,13 +217,9 @@ func extractUpstreamHost(addr string) (host string) {
 
 // resolveUpstreamHost returns the version of ups with IP addresses from the
 // system hosts file placed into its options.
-func (s *Server) resolveUpstreamHost(
-	ups upstream.Upstream,
-	opts *upstream.Options,
-) (resolved upstream.Upstream) {
-	addr := ups.Address()
+func (s *Server) resolveUpstreamHost(host string) (addrs []net.IP) {
 	req := &urlfilter.DNSRequest{
-		Hostname: extractUpstreamHost(addr),
+		Hostname: host,
 		DNSType:  dns.TypeA,
 	}
 	aRes, _ := s.dnsFilter.EtcHosts.MatchRequest(req)
@@ -230,25 +237,9 @@ func (s *Server) resolveUpstreamHost(
 		if ip, ok := dr.Value.(net.IP); ok {
 			ips = append(ips, ip)
 		}
-
 	}
 
-	if len(ips) == 0 {
-		return nil
-	}
-
-	sortNetIPAddrs(ips, opts.PreferIPv6)
-
-	opts = opts.Clone()
-	opts.ServerIPAddrs = ips
-
-	var err error
-	resolved, err = upstream.AddressToUpstream(addr, opts)
-	if err == nil {
-		log.Debug("dnsforward: using addresses from hosts %s for upstream %s", ips, addr)
-	}
-
-	return resolved
+	return ips
 }
 
 // sortNetIPAddrs sorts addrs in accordance with the protocol preferences.

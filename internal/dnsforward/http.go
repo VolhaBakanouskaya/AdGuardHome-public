@@ -658,26 +658,20 @@ func (s *Server) parseUpstreamLine(
 
 	log.Debug("dnsforward: checking if upstream %q works", upstreamAddr)
 
-	u, err = upstream.AddressToUpstream(upstreamAddr, &upstream.Options{
+	opts = &upstream.Options{
 		Bootstrap:  opts.Bootstrap,
 		Timeout:    opts.Timeout,
 		PreferIPv6: opts.PreferIPv6,
-	})
-	if err != nil {
-		return nil, specific, fmt.Errorf("failed to choose upstream for %q: %w", upstreamAddr, err)
 	}
 
 	if s.dnsFilter != nil && s.dnsFilter.EtcHosts != nil {
-		if resolved := s.resolveUpstreamHost(u, opts); resolved != nil {
-			err = u.Close()
-			if err != nil {
-				err = fmt.Errorf("failed to close upstream %q: %w", upstreamAddr, err)
-
-				return nil, specific, errors.WithDeferred(err, resolved.Close())
-			}
-
-			u = resolved
-		}
+		resolved := s.resolveUpstreamHost(extractUpstreamHost(upstreamAddr))
+		sortNetIPAddrs(resolved, opts.PreferIPv6)
+		opts.ServerIPAddrs = resolved
+	}
+	u, err = upstream.AddressToUpstream(upstreamAddr, opts)
+	if err != nil {
+		return nil, specific, fmt.Errorf("creating upstream for %q: %w", upstreamAddr, err)
 	}
 
 	return u, specific, nil

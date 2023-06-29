@@ -18,7 +18,7 @@ import (
 
 	"github.com/AdguardTeam/AdGuardHome/internal/aghhttp"
 	"github.com/AdguardTeam/AdGuardHome/internal/aghnet"
-	"github.com/AdguardTeam/AdGuardHome/internal/aghos"
+	"github.com/AdguardTeam/AdGuardHome/internal/aghtest"
 	"github.com/AdguardTeam/AdGuardHome/internal/filtering"
 	"github.com/AdguardTeam/golibs/httphdr"
 	"github.com/AdguardTeam/golibs/netutil"
@@ -485,7 +485,11 @@ func TestServer_HandleTestUpstreamDNS(t *testing.T) {
 				Data: []byte(hostsListener.Addr().String() + " " + upstreamHost),
 			},
 		},
-		aghos.EmptyWatcher{},
+		&aghtest.FSWatcher{
+			OnEvents: func() (e <-chan struct{}) { return nil },
+			OnAdd:    func(_ string) (err error) { return nil },
+			OnClose:  func() (err error) { return nil },
+		},
 		hostsFileName,
 	)
 	require.NoError(t, err)
