@@ -1276,7 +1276,7 @@ func upgradeSchema21to22(diskConf yobj) (err error) {
 //	  'max_size': 100
 //	  'max_age': 3
 //	  'compress': false
-//	  'localtime': false
+//	  'local_time': false
 //	  'verbose': false
 func upgradeSchema23to24(diskConf yobj) (err error) {
 	log.Printf("Upgrade yaml: 23 to 24")
@@ -1289,7 +1289,7 @@ func upgradeSchema23to24(diskConf yobj) (err error) {
 		migrateField[int](diskConf, logObj, "log_max_size", "max_size"),
 		migrateField[int](diskConf, logObj, "log_max_age", "max_age"),
 		migrateField[bool](diskConf, logObj, "log_compress", "compress"),
-		migrateField[bool](diskConf, logObj, "log_localtime", "localtime"),
+		migrateField[bool](diskConf, logObj, "log_localtime", "local_time"),
 		migrateField[bool](diskConf, logObj, "verbose", "verbose"),
 	)
 	if err != nil {
@@ -1331,7 +1331,7 @@ func migrateField[T any](diskConf, newConf yobj, key, newKey string) (err error)
 }
 
 // fieldValue returns the value of type T for key in diskConf object.
-func fieldValue[T any](diskConf yobj, key string) (ok bool, field interface{}, err error) {
+func fieldValue[T any](diskConf yobj, key string) (ok bool, field any, err error) {
 	fieldVal, ok := diskConf[key]
 	if !ok {
 		return false, new(T), nil

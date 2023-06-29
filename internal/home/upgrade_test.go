@@ -1287,7 +1287,7 @@ func TestUpgradeSchema23to24(t *testing.T) {
 				"max_size":    2,
 				"max_age":     3,
 				"compress":    true,
-				"localtime":   true,
+				"local_time":  true,
 				"verbose":     true,
 			},
 			"schema_version": newSchemaVer,

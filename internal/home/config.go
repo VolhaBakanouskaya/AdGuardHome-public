@@ -53,7 +53,7 @@ type logSettings struct {
 
 	// LocalTime determines, if the time used for formatting the timestamps in
 	// is the computer's local time.
-	LocalTime bool `yaml:"localtime"`
+	LocalTime bool `yaml:"local_time"`
 
 	// Verbose determines, if verbose (aka debug) logging is enabled.
 	Verbose bool `yaml:"verbose"`
@@ -145,8 +145,8 @@ type configuration struct {
 	// Keep this field sorted to ensure consistent ordering.
 	Clients *clientsConfig `yaml:"clients"`
 
-	// LogConfig is a block with log configuration params.
-	LogConfig logSettings `yaml:"log"`
+	// Log is a block with log configuration settings.
+	Log logSettings `yaml:"log"`
 
 	OSConfig *osConfig `yaml:"os"`
 
@@ -377,7 +377,7 @@ var config = &configuration{
 			HostsFile: true,
 		},
 	},
-	LogConfig: logSettings{
+	Log: logSettings{
 		Compress:   false,
 		LocalTime:  false,
 		MaxBackups: 0,
@@ -420,7 +420,7 @@ func readLogSettings() (ls *logSettings) {
 		log.Error("Couldn't get logging settings from the configuration: %s", err)
 	}
 
-	return &conf.LogConfig
+	return &conf.Log
 }
 
 // validateBindHosts returns error if any of binding hosts from configuration is

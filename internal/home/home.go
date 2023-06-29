@@ -821,7 +821,7 @@ func configureLogger(opts options) (err error) {
 // getLogSettings returns a log settings object properly initialized from opts.
 func getLogSettings(opts options) (ls *logSettings) {
 	ls = readLogSettings()
-	configLogSettings := config.LogConfig
+	configLogSettings := config.Log
 
 	// Command-line arguments can override config settings.
 	if opts.verbose || configLogSettings.Verbose {

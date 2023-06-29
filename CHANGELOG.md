@@ -41,7 +41,7 @@ In this release, the schema version has changed from 20 to 24.
 
 - Properties starting with `log_`, and `verbose` property, which used to set up
   logging are now moved to the new object `log` containing new properties `file`,
-  `max_backups`, `max_size`, `max_age`, `compress`, `localtime`, and `verbose`:
+  `max_backups`, `max_size`, `max_age`, `compress`, `local_time`, and `verbose`:
 
   ```yaml
   # BEFORE:
@@ -60,7 +60,7 @@ In this release, the schema version has changed from 20 to 24.
     'max_size': 100
     'max_age': 3
     'compress': false
-    'localtime': false
+    'local_time': false
     'verbose': false
   ```
 
