@@ -57,7 +57,6 @@ type homeContext struct {
 	queryLog   querylog.QueryLog    // query log module
 	dnsServer  *dnsforward.Server   // DNS module
 	rdns       *RDNS                // rDNS module
-	whois      *WHOIS               // WHOIS module
 	dhcpServer dhcpd.Interface      // DHCP module
 	auth       *Auth                // HTTP authentication module
 	filters    *filtering.DNSFilter // DNS filtering module
@@ -83,6 +82,9 @@ type homeContext struct {
 	tlsRoots         *x509.CertPool // list of root CAs for TLSv1.2
 	client           *http.Client
 	appSignalChannel chan os.Signal // Channel for receiving OS signals by the console app
+
+	// whoisCh is the channel for receiving IPs for WHOIS processing.
+	whoisCh chan netip.Addr
 
 	// tlsCipherIDs are the ID of the cipher suites that AdGuard Home must use.
 	tlsCipherIDs []uint16
@@ -353,13 +355,17 @@ func initContextClients() (err error) {
 		arpdb = aghnet.NewARPDB()
 	}
 
-	Context.clients.Init(
+	err = Context.clients.Init(
 		config.Clients.Persistent,
 		Context.dhcpServer,
 		Context.etcHosts,
 		arpdb,
 		config.DNS.DnsfilterConf,
 	)
+	if err != nil {
+		// Don't wrap the error, because it's informative enough as is.
+		return err
+	}
 
 	return nil
 }
@@ -378,6 +384,19 @@ func setupBindOpts(opts options) (err error) {
 
 	if opts.bindHost.IsValid() {
 		config.BindHost = opts.bindHost
+	}
+
+	// Rewrite deprecated options.
+	bindAddr := opts.bindAddr
+	if bindAddr.IsValid() {
+		config.BindHost = bindAddr.Addr()
+		config.BindPort = int(bindAddr.Port())
+
+		err = checkPorts()
+		if err != nil {
+			// Don't wrap the error, because it's informative enough as is.
+			return err
+		}
 	}
 
 	return nil

@@ -3,7 +3,7 @@
 # This comment is used to simplify checking local copies of the script.  Bump
 # this number every time a significant change is made to this script.
 #
-# AdGuard-Project-Version: 3
+# AdGuard-Project-Version: 4
 
 verbose="${VERBOSE:-0}"
 readonly verbose
@@ -80,6 +80,12 @@ esac
 #
 #   *  Package golang.org/x/net/context has been moved into stdlib.
 #
+# Currently, the only standard exception are files generated from protobuf
+# schemas, which use package reflect.  If your project needs more exceptions,
+# add and document them.
+#
+# TODO(a.garipov): Add deprecated packages golang.org/x/exp/maps and
+# golang.org/x/exp/slices once all projects switch to Go 1.21.
 blocklist_imports() {
 	git grep\
 		-e '[[:space:]]"errors"$'\
@@ -91,6 +97,7 @@ blocklist_imports() {
 		-e '[[:space:]]"golang.org/x/net/context"$'\
 		-n\
 		-- '*.go'\
+		':!*.pb.go'\
 		| sed -e 's/^\([^[:space:]]\+\)\(.*\)$/\1 blocked import:\2/'\
 		|| exit 0
 }
@@ -101,6 +108,7 @@ method_const() {
 	git grep -F\
 		-e '"DELETE"'\
 		-e '"GET"'\
+		-e '"PATCH"'\
 		-e '"POST"'\
 		-e '"PUT"'\
 		-n\
@@ -127,7 +135,7 @@ underscores() {
 			-e '_others.go'\
 			-e '_test.go'\
 			-e '_unix.go'\
-			-e '_windows.go' \
+			-e '_windows.go'\
 			-v\
 			| sed -e 's/./\t\0/'
 	)"
@@ -162,12 +170,24 @@ run_linter govulncheck ./...
 
 run_linter gocyclo --over 10 .
 
+# TODO(a.garipov): Enable for all.
+run_linter gocognit --over 10\
+	./internal/aghalg/\
+	./internal/aghchan/\
+	./internal/aghhttp/\
+	./internal/aghio/\
+	./internal/tools/\
+	./internal/next/\
+	./internal/version/\
+	;
+
 run_linter ineffassign ./...
 
 run_linter unparam ./...
 
-git ls-files -- 'Makefile' '*.go' '*.mod' '*.sh' '*.yaml' '*.yml'\
-	| xargs misspell --error
+git ls-files -- 'Makefile' '*.conf' '*.go' '*.mod' '*.sh' '*.yaml' '*.yml'\
+	| xargs misspell --error\
+	| sed -e 's/^/misspell: /'
 
 run_linter looppointer ./...
 
@@ -177,10 +197,36 @@ run_linter nilness ./...
 
 run_linter -e shadow --strict ./...
 
-# TODO(a.garipov): Enable in v0.108.0.
-# run_linter gosec --quiet ./...
+# TODO(a.garipov): Enable for all.
+run_linter gosec --quiet\
+	./internal/aghalg\
+	./internal/aghchan\
+	./internal/aghhttp\
+	./internal/aghio\
+	./internal/aghnet\
+	./internal/aghos\
+	./internal/aghtest\
+	./internal/dhcpd\
+	./internal/dhcpsvc\
+	./internal/dnsforward\
+	./internal/next\
+	./internal/schedule\
+	./internal/stats\
+	./internal/tools\
+	./internal/version\
+	./internal/whois\
+	;
 
 # TODO(a.garipov): Enable --blank?
 run_linter errcheck --asserts ./...
 
-run_linter staticcheck ./...
+staticcheck_matrix='
+darwin:  GOOS=darwin
+freebsd: GOOS=freebsd
+linux:   GOOS=linux
+openbsd: GOOS=openbsd
+windows: GOOS=windows
+'
+readonly staticcheck_matrix
+
+echo "$staticcheck_matrix" | run_linter staticcheck --matrix ./...

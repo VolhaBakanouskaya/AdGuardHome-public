@@ -1,12 +1,12 @@
 package cmd
 
 import (
+	"io/fs"
 	"os"
 	"time"
 
 	"github.com/AdguardTeam/AdGuardHome/internal/aghos"
 	"github.com/AdguardTeam/AdGuardHome/internal/next/agh"
-	"github.com/AdguardTeam/AdGuardHome/internal/next/configmgr"
 	"github.com/AdguardTeam/golibs/log"
 )
 
@@ -17,6 +17,10 @@ type signalHandler struct {
 
 	// confFile is the path to the configuration file.
 	confFile string
+
+	// frontend is the filesystem with the frontend and other statically
+	// compiled files.
+	frontend fs.FS
 
 	// start is the time at which AdGuard Home has been started.
 	start time.Time
@@ -49,7 +53,7 @@ func (h *signalHandler) reconfigure() {
 
 	status := h.shutdown()
 	if status != statusSuccess {
-		log.Info("sighdlr: reconfiruging: exiting with status %d", status)
+		log.Info("sighdlr: reconfiguring: exiting with status %d", status)
 
 		os.Exit(status)
 	}
@@ -58,16 +62,16 @@ func (h *signalHandler) reconfigure() {
 	// reconfigured without the full shutdown, and the error handling is
 	// currently not the best.
 
-	confMgr, err := configmgr.New(h.confFile, h.start)
-	fatalOnError(err)
+	confMgr, err := newConfigMgr(h.confFile, h.frontend, h.start)
+	check(err)
 
 	web := confMgr.Web()
 	err = web.Start()
-	fatalOnError(err)
+	check(err)
 
 	dns := confMgr.DNS()
 	err = dns.Start()
-	fatalOnError(err)
+	check(err)
 
 	h.services = []agh.Service{
 		dns,
@@ -103,10 +107,16 @@ func (h *signalHandler) shutdown() (status int) {
 }
 
 // newSignalHandler returns a new signalHandler that shuts down svcs.
-func newSignalHandler(confFile string, start time.Time, svcs ...agh.Service) (h *signalHandler) {
+func newSignalHandler(
+	confFile string,
+	frontend fs.FS,
+	start time.Time,
+	svcs ...agh.Service,
+) (h *signalHandler) {
 	h = &signalHandler{
 		signal:   make(chan os.Signal, 1),
 		confFile: confFile,
+		frontend: frontend,
 		start:    start,
 		services: svcs,
 	}
