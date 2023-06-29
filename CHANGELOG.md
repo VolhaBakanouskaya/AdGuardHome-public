@@ -37,8 +37,35 @@ NOTE: Add new changes BELOW THIS COMMENT.
 
 #### Configuration Changes
 
-In this release, the schema version has changed from 20 to 22.
+In this release, the schema version has changed from 20 to 24.
 
+- Properties starting with `log_`, and `verbose` property, which used to set up
+  logging are now moved to the new object `log` containing new properties `file`,
+  `max_backups`, `max_size`, `max_age`, `compress`, `localtime`, and `verbose`:
+
+  ```yaml
+  # BEFORE:
+  'log_file': ""
+  'log_max_backups': 0
+  'log_max_size': 100
+  'log_max_age': 3
+  'log_compress': false
+  'log_localtime': false
+  'verbose': false
+
+  # AFTER:
+  'log':
+    'file': ""
+    'max_backups': 0
+    'max_size': 100
+    'max_age': 3
+    'compress': false
+    'localtime': false
+    'verbose': false
+  ```
+
+  To rollback this change, remove the new object `log`, set back `log_` and
+  `verbose` properties and change the `schema_version` back to `22`.
 - Property `clients.persistent.blocked_services`, which in schema versions 21
   and earlier used to be a list containing ids of blocked services, is now an
   object containing ids and schedule for blocked services:
