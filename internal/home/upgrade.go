@@ -1352,13 +1352,13 @@ func upgradeSchema23to24(diskConf yobj) (err error) {
 
 	logObj := yobj{}
 	err = coalesceError(
-		migrateField[string](diskConf, logObj, "log_file", "file"),
-		migrateField[int](diskConf, logObj, "log_max_backups", "max_backups"),
-		migrateField[int](diskConf, logObj, "log_max_size", "max_size"),
-		migrateField[int](diskConf, logObj, "log_max_age", "max_age"),
-		migrateField[bool](diskConf, logObj, "log_compress", "compress"),
-		migrateField[bool](diskConf, logObj, "log_localtime", "local_time"),
-		migrateField[bool](diskConf, logObj, "verbose", "verbose"),
+		moveField[string](diskConf, logObj, "log_file", "file"),
+		moveField[int](diskConf, logObj, "log_max_backups", "max_backups"),
+		moveField[int](diskConf, logObj, "log_max_size", "max_size"),
+		moveField[int](diskConf, logObj, "log_max_age", "max_age"),
+		moveField[bool](diskConf, logObj, "log_compress", "compress"),
+		moveField[bool](diskConf, logObj, "log_localtime", "local_time"),
+		moveField[bool](diskConf, logObj, "verbose", "verbose"),
 	)
 	if err != nil {
 		// Don't wrap the error, because it's informative enough as is.
@@ -1380,9 +1380,9 @@ func upgradeSchema23to24(diskConf yobj) (err error) {
 	return nil
 }
 
-// migrateField gets field value for key from diskConf, and then set this value
+// moveField gets field value for key from diskConf, and then set this value
 // in newConf for newKey.
-func migrateField[T any](diskConf, newConf yobj, key, newKey string) (err error) {
+func moveField[T any](diskConf, newConf yobj, key, newKey string) (err error) {
 	ok, newVal, err := fieldValue[T](diskConf, key)
 	if !ok {
 		return err
